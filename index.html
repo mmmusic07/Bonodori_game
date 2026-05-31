@@ -28,6 +28,7 @@
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const W=cv.width,H=cv.height, CX=W/2,CY=H*0.52, RP=160,VF=0.45;
 const Lx=270, Rx=W-270, HITY=H-86, TOPY=58, APPROACH=1.9;
+const MAXLIFE=100;   // 体力（ミスで減り、0でゲームオーバー）
 
 // ===== Web Audio（お囃子合成：太鼓・三味線・笛・鉦） =====
 let actx=null,master=null;
@@ -114,7 +115,8 @@ const TXT={
     introVenue:i=>'第 '+(i+1)+' 会場 ／ 全 10 会場',
     introGoal:n=>'目標：観客 '+n+' 人を踊りに巻き込め！', ready:n=>'用意　'+n, go:'スタート！',
     cleared:i=>locName(i)+' 制覇！\n'+songName(i),
-    perfect:'バッチリ！', good:'よし', ok:'おしい', miss:'スカッ', clapP:'パン！揃った！', clapG:'パン！', voltage:'ボルテージMAX！',
+    perfect:'バッチリ！', good:'よし', ok:'おしい', miss:'スカッ', missEf:'ミス！', clapP:'パン！揃った！', clapG:'パン！', voltage:'ボルテージMAX！',
+    life:'体力', gameover:'ゲームオーバー', goReason:'ミスが多くて踊りが止まった…', goRetry:'スペース／タップでもう一度',
     laneL:'左手 ←', laneR:'→ 右手', clapLabel1:'両', clapLabel2:'手', clapTag:'✋ 手拍子',
     noteBanner:'♪が下の輪に来たら その手のボタン！', feverBanner:'★ フィーバー！左右連打せよ ★',
     tapL:'◀ ここをタップ＝左手', tapR:'右手＝タップ ▶',
@@ -137,7 +139,8 @@ const TXT={
     introVenue:i=>'Venue '+(i+1)+' / 10',
     introGoal:n=>'Goal: get '+n+' people dancing!', ready:n=>'Ready '+n, go:'START!',
     cleared:i=>locName(i)+' CLEARED!\n'+songName(i),
-    perfect:'PERFECT!', good:'GOOD', ok:'OK', miss:'MISS', clapP:'CLAP!', clapG:'CLAP!', voltage:'VOLTAGE MAX!',
+    perfect:'PERFECT!', good:'GOOD', ok:'OK', miss:'MISS', missEf:'MISS!', clapP:'CLAP!', clapG:'CLAP!', voltage:'VOLTAGE MAX!',
+    life:'Life', gameover:'GAME OVER', goReason:'Too many misses — the dance stopped…', goRetry:'SPACE / Tap to retry',
     laneL:'L hand ←', laneR:'→ R hand', clapLabel1:'L', clapLabel2:'R', clapTag:'✋ CLAP',
     noteBanner:'Tap that hand when ♪ hits the ring!', feverBanner:'★ FEVER! Mash L / R ★',
     tapL:'◀ Tap here = Left', tapR:'Right = Tap ▶',
@@ -185,7 +188,7 @@ function newState(){ return {
   angle:0, angSpeed:0.58, score:0, combo:0, maxCombo:0,
   heat:0, fever:0, lhand:0, rhand:0, lastPress:{left:-9,right:-9},
   audience:[], followers:[], ripples:[], effects:[], bigTexts:[], notes:[],
-  great:0, good:0, flash:0, clearTimer:0, introT:0, target:0, paused:false,
+  great:0, good:0, flash:0, clearTimer:0, introT:0, target:0, paused:false, life:MAXLIFE,
 }; }
 state=newState();
 
@@ -195,6 +198,7 @@ function startStage(idx){
   state.mel=s.mel; state.chart=buildChart2(idx);
   state.songTime=0; state.beatIndex=-1; state.eighthIndex=-1; state.spawnEighth=0;
   state.notes=[]; state.ripples=[]; state.audience=[];
+  state.life=MAXLIFE;                     // 会場ごとに体力を満タンに
   state.target=120+idx*30;               // この会場で巻き込む目標人数（クリア条件）※長め
   for(let i=0;i<state.target;i++){ const a=Math.random()*6.2832, rr=RP*(1.30+Math.random()*0.66);
     state.audience.push({x:CX+Math.cos(a)*rr,y:CY+Math.sin(a)*rr*VF,conv:false,ph:Math.random()*6.28}); }
@@ -221,7 +225,7 @@ addEventListener('keydown',e=>{
   if(['Space','Enter','KeyR','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyP','Escape','Backspace','KeyL'].includes(e.code)) e.preventDefault();
   if(e.code==='KeyL'){ toggleLang(); return; }   // L キーで言語切替（いつでも）
   if(state.phase==='title'){ if(['Space','Enter'].includes(e.code)) startGame(); return; }
-  if(state.phase==='gameclear'){ if(['Space','Enter','KeyR'].includes(e.code)) state=newState(); return; }
+  if(state.phase==='gameclear'||state.phase==='gameover'){ if(['Space','Enter','KeyR'].includes(e.code)) state=newState(); return; }
   // 一時停止／再生／最初へ（ゲーム中いつでも）
   if(e.code==='KeyP'||e.code==='Escape'){ state.paused=!state.paused; return; }
   if(e.code==='Backspace'){ state=newState(); return; }
@@ -244,7 +248,7 @@ function pointerDown(x,y){
     if(inRect(x,y,BTN_LANG)){ toggleLang(); return; }   // タイトルでも言語切替
     startGame(); return;
   }
-  if(state.phase==='gameclear'){ if(inRect(x,y,BTN_LANG)){ toggleLang(); return; } state=newState(); return; }
+  if(state.phase==='gameclear'||state.phase==='gameover'){ if(inRect(x,y,BTN_LANG)){ toggleLang(); return; } state=newState(); return; }
   if(!inGame()) return;
   // 上部ボタンは「プレイ中でも一時停止中でも」常に効く
   if(inRect(x,y,BTN_LANG)){ toggleLang(); return; }
@@ -287,9 +291,9 @@ function onHand(hand){
 }
 function resolveHit(nt,dt,clap){
   nt.hit=true;
-  if(dt<0.09){ state.great++; state.heat+=clap?2:1.4; state.combo++; spawnRipple(clap?'fever':'excellent', clap?3:2);
+  if(dt<0.09){ state.great++; state.heat+=clap?2:1.4; state.combo++; state.life=Math.min(MAXLIFE,state.life+2.5); spawnRipple(clap?'fever':'excellent', clap?3:2);
     addEffect(clap?t('clapP'):t('perfect'),'#fff200'); playTone(clap?1480:1320); }
-  else if(dt<0.2){ state.good++; state.heat+=clap?1.4:1; state.combo++; spawnRipple(clap?'excellent':'good', clap?2:1);
+  else if(dt<0.2){ state.good++; state.heat+=clap?1.4:1; state.combo++; state.life=Math.min(MAXLIFE,state.life+1.5); spawnRipple(clap?'excellent':'good', clap?2:1);
     addEffect(clap?t('clapG'):t('good'),'#9fffba'); playTone(990); }
   else { state.heat+=0.5; state.combo=0; spawnRipple('good',1); addEffect(t('ok'),'#ffaa55'); playTone(740); }
   state.maxCombo=Math.max(state.maxCombo,state.combo);
@@ -347,7 +351,10 @@ function update(dt){
     if(ty && !(state.fever>0)) state.notes.push({t:j*state.el,type:ty,hit:false,miss:false});
     state.spawnEighth++;
   }
-  for(const nt of state.notes){ if(!nt.hit&&!nt.miss && state.songTime-nt.t>0.46){ nt.miss=true; state.heat=Math.max(0,state.heat-1); state.combo=0; } }
+  for(const nt of state.notes){ if(!nt.hit&&!nt.miss && state.songTime-nt.t>0.46){
+    nt.miss=true; state.heat=Math.max(0,state.heat-1); state.combo=0;
+    state.life-=9; addEffect(t('missEf'),'#ff5555');     // 見逃しで体力ダウン
+    if(state.life<=0){ state.life=0; state.phase='gameover'; addBig(t('gameover')); } } }
   state.notes=state.notes.filter(nt=> state.songTime-nt.t < 0.7);
 
   if(state.fever>0){ state.fever-=dt;
@@ -481,14 +488,20 @@ function drawUI(){
   ctx.fillStyle='rgba(0,0,0,0.42)'; ctx.fillRect(0,0,W,42);
   ctx.textAlign='left'; ctx.textBaseline='alphabetic'; ctx.fillStyle='#ffd700'; ctx.font='bold 20px serif';
   ctx.fillText(t('dancers')(state.score),12,28);
-  const gx=210,gw=250; ctx.fillStyle='#fff'; ctx.font='bold 13px serif'; ctx.textAlign='right'; ctx.fillText(t('heat'),gx-8,27); ctx.textAlign='left';
+  // 体力（ミスで減る）
+  const lx=170,lw=150; ctx.fillStyle='#fff'; ctx.font='bold 13px serif'; ctx.textAlign='right'; ctx.fillText(t('life'),lx-8,27); ctx.textAlign='left';
+  ctx.fillStyle='#2a0d0d'; ctx.fillRect(lx,13,lw,16);
+  const lowLife=state.life<=30, blink=lowLife && Math.floor(Date.now()/200)%2===0;
+  let lg=ctx.createLinearGradient(lx,0,lx+lw,0); lg.addColorStop(0,'#ff2233'); lg.addColorStop(1,'#ff8a3a');
+  ctx.fillStyle=blink?'#fff':lg; ctx.fillRect(lx,13,lw*Math.max(0,state.life)/MAXLIFE,16);
+  ctx.strokeStyle=lowLife?'#ff3333':'#ffcc00'; ctx.lineWidth=2; ctx.strokeRect(lx,13,lw,16);
+  // 熱気（フィーバー用）
+  const gx=400,gw=130; ctx.fillStyle='#fff'; ctx.font='bold 13px serif'; ctx.textAlign='right'; ctx.fillText(t('heat'),gx-8,27); ctx.textAlign='left';
   ctx.fillStyle='#301010'; ctx.fillRect(gx,13,gw,16);
   let gg=ctx.createLinearGradient(gx,0,gx+gw,0); gg.addColorStop(0,'#ff5500'); gg.addColorStop(1,'#ffdd33');
   ctx.fillStyle=state.fever>0?'#fff200':gg; ctx.fillRect(gx,13,gw*(state.heat/100),16);
   ctx.strokeStyle='#ffcc00'; ctx.lineWidth=2; ctx.strokeRect(gx,13,gw,16);
-  ctx.textAlign='left';
-  if(state.fever>0){ ctx.fillStyle='#fff200'; ctx.font='bold 14px serif'; ctx.fillText(t('fever')(state.fever.toFixed(1)),472,18); }
-  ctx.fillStyle='#fff'; ctx.font='bold 13px serif'; ctx.fillText(t('venueOf')(state.stage),472,35);
+  ctx.textAlign='left'; ctx.fillStyle='#fff'; ctx.font='bold 11px serif'; ctx.fillText(t('venueOf')(state.stage),536,26);
   // 制覇ゲージ（クリア進捗）
   const got=state.target-state.audience.length, bx=CX-170, bw=340, by=52;
   ctx.fillStyle='rgba(0,0,0,0.55)'; roundRect(bx-8,by-5,bw+16,30,9); ctx.fill();
@@ -539,6 +552,16 @@ function drawGameClear(){
   ctx.fillStyle='#fff'; ctx.font='20px serif'; ctx.fillText(t('gcStat')(state.maxCombo,state.great),CX,312);
   if(Math.floor(Date.now()/500)%2===0) ctx.fillText(t('gcBack'),CX,392);
 }
+function drawGameOver(){
+  ctx.fillStyle='rgba(0,0,0,0.78)'; ctx.fillRect(0,0,W,H); ctx.textAlign='center';
+  ctx.fillStyle='#ff4444'; ctx.font='bold 60px "Yu Mincho",serif'; ctx.strokeStyle='#000'; ctx.lineWidth=7;
+  ctx.strokeText(t('gameover'),CX,180); ctx.fillText(t('gameover'),CX,180);
+  ctx.fillStyle='#ddd'; ctx.font='24px serif'; ctx.fillText(t('goReason'),CX,234);
+  ctx.fillStyle='#ffd700'; ctx.font='26px serif'; ctx.fillText(t('gcScore')(state.score),CX,300);
+  ctx.fillStyle='#fff'; ctx.font='20px serif'; ctx.fillText(t('venueOf')(state.stage)+'　'+locName(state.stage),CX,338);
+  ctx.fillStyle='#fff'; ctx.font='bold 22px serif';
+  if(Math.floor(Date.now()/500)%2===0) ctx.fillText(t('goRetry'),CX,404);
+}
 
 // ===== ボタン描画 =====
 function drawBtn(r,label,bg,fs){ ctx.fillStyle=bg; roundRect(r.x,r.y,r.w,r.h,7); ctx.fill();
@@ -584,7 +607,8 @@ function loop(ts){ let dt=0; if(lastTs!=null) dt=Math.min(0.05,(ts-lastTs)/1000)
   if(state.paused) drawPause();
   if(state.phase==='title') drawTitle();
   if(state.phase==='gameclear') drawGameClear();
-  if(state.phase==='title'||state.phase==='gameclear') drawBtn(BTN_LANG,t('langBtn'),'rgba(20,30,60,0.9)',15);
+  if(state.phase==='gameover') drawGameOver();
+  if(state.phase==='title'||state.phase==='gameclear'||state.phase==='gameover') drawBtn(BTN_LANG,t('langBtn'),'rgba(20,30,60,0.9)',15);
   requestAnimationFrame(loop);
 }
 updateHint();
