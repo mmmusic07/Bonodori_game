@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>爆踊！盆踊りフェスティバル 東京十番勝負</title>
+<title>爆踊！盆踊りフェスティバル 東京二十番勝負</title>
 <style>
   html, body { margin:0; padding:0; height:100%; background:#0a0518;
     display:flex; justify-content:center; align-items:center;
@@ -27,7 +27,7 @@
 <script>
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const W=cv.width,H=cv.height, CX=W/2,CY=H*0.52, RP=160,VF=0.45;
-const Lx=270, Rx=W-270, HITY=H-86, TOPY=58, APPROACH=1.9;
+const Lx=270, Rx=W-270, HITY=H-86, TOPY=58, APPROACH=1.27;  // ノーツ落下時間（小さいほど速い／1.9→1.27で約1.5倍速）
 const MAXLIFE=100;   // 体力（ミスで減り、0でゲームオーバー）
 
 // ===== Web Audio（お囃子合成：太鼓・三味線・笛・鉦） =====
@@ -66,7 +66,7 @@ function playTone(freq){ if(!actx) return; const t=actx.currentTime; const o=act
 const N={A3:220,C4:261.63,D4:293.66,E4:329.63,G4:392,A4:440,C5:523.25,D5:587.33,E5:659.25,G5:783.99};
 const TAIKO=['DON',0,'don','don','ka',0,'don','ka'];   // お囃子グルーヴ
 
-// ===== 10ステージ（東京の会場＋会場ごとのオリジナル盆踊り曲） =====
+// ===== 20ステージ（東京の会場＋会場ごとのオリジナル盆踊り曲） =====
 const STAGES=[
   {loc:'浅草',  song:'浅草雷門ばやし',     bpm:104, sky:['#0a0a40','#3a2030'], ground:'#2a1d2a',
    mel:[N.A4,0,N.C5,0,N.A4,0,N.G4,0, N.E4,0,N.G4,0,N.A4,0,0,0]},
@@ -88,31 +88,53 @@ const STAGES=[
    mel:[N.C5,0,N.A4,0,N.G4,0,N.E4,0, N.G4,0,N.A4,0,N.C5,0,N.D5,0]},
   {loc:'神宮外苑',song:'神宮外苑大花火音頭',bpm:126, sky:['#1a0838','#502038'], ground:'#321a2a',
    mel:[N.A4,N.C5,N.D5,N.C5,N.A4,N.G4,N.A4,0, N.E4,N.G4,N.A4,N.C5,N.D5,0,0,0]},
+  {loc:'銀座',  song:'銀座柳音頭',       bpm:122, sky:['#0a0a3a','#3a2840'], ground:'#241a2e',
+   mel:[N.C5,0,N.D5,0,N.E5,0,N.D5,0, N.C5,0,N.A4,0,N.G4,0,N.A4,0]},
+  {loc:'秋葉原',song:'秋葉原電気音頭',   bpm:128, sky:['#100a40','#402048'], ground:'#2a1a34',
+   mel:[N.E5,0,N.D5,N.E5,N.G5,0,N.E5,0, N.D5,0,N.C5,0,N.A4,0,N.C5,0]},
+  {loc:'お台場',song:'お台場海浜音頭',   bpm:118, sky:['#081840','#2a3848'], ground:'#1f2a34',
+   mel:[N.A4,0,N.C5,0,N.D5,0,N.C5,0, N.A4,0,N.G4,0,N.E4,0,N.G4,0]},
+  {loc:'両国',  song:'両国大相撲音頭',   bpm:124, sky:['#1a0a2a','#43203a'], ground:'#2a1828',
+   mel:[N.G4,N.A4,N.C5,N.A4,N.G4,0,N.E4,0, N.G4,N.A4,N.C5,N.D5,N.C5,0,0,0]},
+  {loc:'吉祥寺',song:'吉祥寺井の頭音頭', bpm:120, sky:['#0a1830','#2a3a30'], ground:'#1f2a26',
+   mel:[N.D5,0,N.C5,0,N.A4,0,N.G4,0, N.A4,0,N.C5,0,N.D5,0,N.E5,0]},
+  {loc:'中野',  song:'中野ブロードウェイ音頭',bpm:126, sky:['#180a38','#48243f'], ground:'#2e1a2c',
+   mel:[N.A4,N.C5,N.D5,N.E5,N.D5,N.C5,N.A4,0, N.G4,N.A4,N.C5,N.A4,N.G4,0,0,0]},
+  {loc:'品川',  song:'品川宿場音頭',     bpm:122, sky:['#0a1238','#2a2a40'], ground:'#1f2030',
+   mel:[N.E4,0,N.G4,0,N.A4,0,N.C5,0, N.A4,0,N.G4,0,N.A4,0,N.C5,0]},
+  {loc:'柴又',  song:'柴又帝釈天音頭',   bpm:116, sky:['#100a30','#3a2438'], ground:'#241a2a',
+   mel:[N.A4,0,N.G4,N.E4,N.D4,0,N.E4,0, N.G4,0,N.A4,N.C5,N.A4,0,0,0]},
+  {loc:'東京タワー',song:'東京タワー大江戸音頭',bpm:130, sky:['#1a0838','#5a2038'], ground:'#321a2a',
+   mel:[N.C5,N.D5,N.E5,N.D5,N.C5,N.A4,N.C5,0, N.D5,N.E5,N.G5,N.E5,N.D5,0,0,0]},
+  {loc:'東京スカイツリー',song:'スカイツリー天望音頭',bpm:134, sky:['#0a0540','#3a1850'], ground:'#281838',
+   mel:[N.A4,N.C5,N.E5,N.G5,N.E5,N.C5,N.A4,0, N.C5,N.E5,N.G5,N.E5,N.D5,0,0,0]},
 ];
 const SHOUTS_JA=['ヨイショ！','ドッコイショ！','アーコリャコリャ！','ソーレ！','ヨイヤサ！','ハァ〜！'];
 const SHOUTS_EN=['Yoisho!','Dokkoisho!','A-Korya-Korya!','Sore!','Yoiyasa!','Haa!'];
 
 // ===== 多言語（日本語 / English） =====
 let lang='ja';
-const LOC_EN=['Asakusa','Ueno','Shibuya','Shinjuku','Ikebukuro','Koenji','Tsukiji','Tsukishima','Hibiya','Jingu Gaien'];
-const SONG_EN=['Kaminarimon Bayashi','Shinobazu Ondo','Scramble Ondo','Neon Ondo','Owl Ondo','Yagura Bayashi','Tuna Ondo','Monja Ondo','Yoimiya Ondo','Grand Fireworks Ondo'];
+const LOC_EN=['Asakusa','Ueno','Shibuya','Shinjuku','Ikebukuro','Koenji','Tsukiji','Tsukishima','Hibiya','Jingu Gaien',
+  'Ginza','Akihabara','Odaiba','Ryogoku','Kichijoji','Nakano','Shinagawa','Shibamata','Tokyo Tower','Skytree'];
+const SONG_EN=['Kaminarimon Bayashi','Shinobazu Ondo','Scramble Ondo','Neon Ondo','Owl Ondo','Yagura Bayashi','Tuna Ondo','Monja Ondo','Yoimiya Ondo','Grand Fireworks Ondo',
+  'Ginza Yanagi Ondo','Akihabara Denki Ondo','Odaiba Kaihin Ondo','Ryogoku Sumo Ondo','Inokashira Ondo','Nakano Broadway Ondo','Shinagawa Shukuba Ondo','Shibamata Taishaku Ondo','Tokyo Tower Oedo Ondo','Skytree Tembo Ondo'];
 const locName =i=> lang==='ja'?STAGES[i].loc :LOC_EN[i];
 const songName=i=> lang==='ja'?STAGES[i].song:SONG_EN[i];
 const TXT={
   ja:{
-    title:'爆踊！盆踊りフェスティバル', subtitle:'〜 東京十番勝負 〜',
+    title:'爆踊！盆踊りフェスティバル', subtitle:'〜 東京二十番勝負 〜',
     inst1:'音楽に合わせて縦に落ちる ♪ を、下の輪で押すだけ！',
     inst2:'← 左手の所作　／　→ 右手の所作',
     inst3:'「両手」の ✋ ノーツは ← → を同時押し（手拍子！）',
-    inst4:'観客を巻き込み、東京10会場の盆踊りを次々制覇しよう',
+    inst4:'観客を巻き込み、東京'+STAGES.length+'会場の盆踊りを次々制覇しよう',
     start:'▶ スペース／タップで開始 ◀', audioNote:'※ 音が鳴ります　｜　右上の EN で英語表示',
     pause:'❚❚ 一時停止', play:'▶ 再生', back:'⟲ 最初へ', langBtn:'EN',
     paused:'一時停止中', ovResume:'▶ 再生（つづける）', ovBack:'⟲ タイトルへ戻る',
     pauseHelp:'P / Esc：一時停止・再生　　Backspace：最初へ戻る',
     dancers:n=>'踊り子 '+n+' 人', heat:'熱気', combo:n=>n+' コンボ！', fever:s=>'★フィーバー '+s+'★',
-    venueOf:i=>'会場 '+(i+1)+'/10',
+    venueOf:i=>'会場 '+(i+1)+'/'+STAGES.length,
     remain:n=>locName(state.stage)+' 制覇まで　あと '+n+' 人',
-    introVenue:i=>'第 '+(i+1)+' 会場 ／ 全 10 会場',
+    introVenue:i=>'第 '+(i+1)+' 会場 ／ 全 '+STAGES.length+' 会場',
     introGoal:n=>'目標：観客 '+n+' 人を踊りに巻き込め！', ready:n=>'用意　'+n, go:'スタート！',
     cleared:i=>locName(i)+' 制覇！\n'+songName(i),
     perfect:'バッチリ！', good:'よし', ok:'おしい', miss:'スカッ', missEf:'ミス！', clapP:'パン！揃った！', clapG:'パン！', voltage:'ボルテージMAX！',
@@ -120,23 +142,23 @@ const TXT={
     laneL:'左手 ←', laneR:'→ 右手', clapLabel1:'両', clapLabel2:'手', clapTag:'✋ 手拍子',
     noteBanner:'♪が下の輪に来たら その手のボタン！', feverBanner:'★ フィーバー！左右連打せよ ★',
     tapL:'◀ ここをタップ＝左手', tapR:'右手＝タップ ▶',
-    gcTitle:'東京全10会場 制覇！', gcSub:'東京中が踊りの大渦じゃ！',
+    gcTitle:'東京全'+STAGES.length+'会場 制覇！', gcSub:'東京中が踊りの大渦じゃ！',
     gcScore:n=>'巻き込んだ踊り子　'+n+' 人', gcStat:(c,g)=>'最大コンボ '+c+'　バッチリ '+g, gcBack:'スペース／タップでタイトルへ',
   },
   en:{
-    title:'BON-ODORI FESTIVAL!', subtitle:'~ Tokyo 10-Venue Challenge ~',
+    title:'BON-ODORI FESTIVAL!', subtitle:'~ Tokyo '+STAGES.length+'-Venue Challenge ~',
     inst1:'Notes (♪) fall in time with the music — press when they reach the ring!',
     inst2:'←  Left-hand move    /    →  Right-hand move',
     inst3:'A "both hands" ✋ note = press ← and → together (clap!)',
-    inst4:'Pull the crowd into the dance and clear 10 Tokyo venues!',
+    inst4:'Pull the crowd into the dance and clear '+STAGES.length+' Tokyo venues!',
     start:'▶ Press SPACE / Tap to start ◀', audioNote:'※ Sound on  |  Tap 日本語 (top-right) for Japanese',
     pause:'❚❚ Pause', play:'▶ Resume', back:'⟲ Restart', langBtn:'日本語',
     paused:'PAUSED', ovResume:'▶ Resume', ovBack:'⟲ Back to title',
     pauseHelp:'P / Esc: pause / resume    Backspace: restart',
     dancers:n=>'Dancers: '+n, heat:'Heat', combo:n=>n+' COMBO!', fever:s=>'★ FEVER '+s+'s ★',
-    venueOf:i=>'Venue '+(i+1)+'/10',
+    venueOf:i=>'Venue '+(i+1)+'/'+STAGES.length,
     remain:n=>n+' more to clear '+locName(state.stage),
-    introVenue:i=>'Venue '+(i+1)+' / 10',
+    introVenue:i=>'Venue '+(i+1)+' / '+STAGES.length,
     introGoal:n=>'Goal: get '+n+' people dancing!', ready:n=>'Ready '+n, go:'START!',
     cleared:i=>locName(i)+' CLEARED!\n'+songName(i),
     perfect:'PERFECT!', good:'GOOD', ok:'OK', miss:'MISS', missEf:'MISS!', clapP:'CLAP!', clapG:'CLAP!', voltage:'VOLTAGE MAX!',
@@ -144,7 +166,7 @@ const TXT={
     laneL:'L hand ←', laneR:'→ R hand', clapLabel1:'L', clapLabel2:'R', clapTag:'✋ CLAP',
     noteBanner:'Tap that hand when ♪ hits the ring!', feverBanner:'★ FEVER! Mash L / R ★',
     tapL:'◀ Tap here = Left', tapR:'Right = Tap ▶',
-    gcTitle:'All 10 Tokyo venues cleared!', gcSub:'All Tokyo is one giant dance!',
+    gcTitle:'All '+STAGES.length+' Tokyo venues cleared!', gcSub:'All Tokyo is one giant dance!',
     gcScore:n=>'Dancers gathered: '+n, gcStat:(c,g)=>'Max combo '+c+'   Perfect '+g, gcBack:'SPACE / Tap for title',
   },
 };
