@@ -27,7 +27,7 @@
 <script>
 const cv=document.getElementById('game'), ctx=cv.getContext('2d');
 const W=cv.width,H=cv.height, CX=W/2,CY=H*0.52, RP=160,VF=0.45;
-const Lx=270, Rx=W-270, HITY=H-86, TOPY=58, APPROACH=1.27;  // ノーツ落下時間（小さいほど速い／1.9→1.27で約1.5倍速）
+const Lx=270, Rx=W-270, HITY=H-86, TOPY=58, APPROACH=1.9;  // 基準の落下時間(1〜10会場)。11会場目以降は state.approach で約1.5倍速に
 const MAXLIFE=100;   // 体力（ミスで減り、0でゲームオーバー）
 
 // ===== Web Audio（お囃子合成：太鼓・三味線・笛・鉦） =====
@@ -211,11 +211,13 @@ function newState(){ return {
   heat:0, fever:0, lhand:0, rhand:0, lastPress:{left:-9,right:-9},
   audience:[], followers:[], ripples:[], effects:[], bigTexts:[], notes:[],
   great:0, good:0, flash:0, clearTimer:0, introT:0, target:0, paused:false, life:MAXLIFE,
+  approach:APPROACH,
 }; }
 state=newState();
 
 function startStage(idx){
   const s=STAGES[idx]; state.stage=idx;
+  state.approach = idx>=10 ? APPROACH/1.5 : APPROACH;  // 11会場目(idx=10)から約1.5倍速、1〜10会場は元の速度
   state.beat=60/(100+idx*6); state.el=state.beat/2;   // 会場ごとにテンポUP（100→154）
   state.mel=s.mel; state.chart=buildChart2(idx);
   state.songTime=0; state.beatIndex=-1; state.eighthIndex=-1; state.spawnEighth=0;
@@ -368,7 +370,7 @@ function update(dt){
   if(state.phase!=='play'){ updateEffects(dt); return; }
 
   // ===== プレイ中だけ：ノーツ出現・見逃し・クリア判定 =====
-  while(state.spawnEighth*state.el - state.songTime <= APPROACH){
+  while(state.spawnEighth*state.el - state.songTime <= state.approach){
     const j=state.spawnEighth, ty=state.chart[((j%state.chart.length)+state.chart.length)%state.chart.length];
     if(ty && !(state.fever>0)) state.notes.push({t:j*state.el,type:ty,hit:false,miss:false});
     state.spawnEighth++;
@@ -486,7 +488,7 @@ function drawNotes(){
     ctx.fillStyle='#fff'; ctx.font='bold 14px serif'; ctx.textAlign='center'; ctx.fillText(lab,x,HITY+42);
   });
   if(state.fever<=0) for(const nt of state.notes){ if(nt.miss||nt.hit) continue;
-    const prog=(nt.t-state.songTime)/APPROACH; if(prog>1.05) continue;
+    const prog=(nt.t-state.songTime)/state.approach; if(prog>1.05) continue;
     const y=HITY-prog*(HITY-TOPY);
     if(nt.type==='clap'){ ctx.strokeStyle='rgba(255,242,0,0.65)'; ctx.lineWidth=4;
       ctx.beginPath(); ctx.moveTo(Lx,y); ctx.lineTo(Rx,y); ctx.stroke();
